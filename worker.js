@@ -22,32 +22,46 @@ function setBytes(name, buffer) {
   py.runPython(`${name} = ${name}_js.to_py()\ndel ${name}_js`);
 }
 
+// 화면에서 부를 수 있는 model.py 함수 → 인자 순서
+const FUNCTIONS = {
+  explore: ['level', 'sheet', 'axis', 'key'],
+  profile: ['level', 'sheet', 'code'],
+  top_links: ['level', 'sheet'],
+  sheet_axes: ['level', 'sheet'],
+  compare: ['level', 'sheet', 'payload'],
+  structure: ['level'],
+  linkage: ['level'],
+  employment_view: [],
+  simulate: ['level', 'payload'],
+};
+
 async function handle({ id, type, payload }) {
   try {
     let result;
     if (type === 'load') {
       await boot();
+      const out = {};
       if (payload.classification) {
         setBytes('class_bytes', payload.classification);
-        py.runPython('load_classification(class_bytes)\ndel class_bytes');
+        out.classification = JSON.parse(py.runPython('_r = load_classification(class_bytes)\ndel class_bytes\n_r'));
       }
       step(3, 'Excel 읽기와 계수 검증 중…');
+      if (payload.summary) {
+        setBytes('summary_bytes', payload.summary);
+        out.summary = JSON.parse(py.runPython('_r = load_summary(summary_bytes)\ndel summary_bytes\n_r'));
+      }
       setBytes('raw_bytes', payload.buffer);
       py.globals.set('level_in', payload.level);
       py.globals.set('n_in', payload.n);
-      result = py.runPython('_r = initialize(level_in, raw_bytes, n_in)\ndel raw_bytes\n_r');
-    } else if (type === 'explore') {
-      py.globals.set('args_in', JSON.stringify(payload));
-      result = py.runPython("_a = json.loads(args_in)\nexplore(_a['level'], _a['sheet'], _a['axis'], _a['key'])");
-    } else if (type === 'heatmap') {
-      py.globals.set('args_in', JSON.stringify(payload));
-      result = py.runPython("_a = json.loads(args_in)\nheatmap(_a['level'], _a['sheet'])");
-    } else if (type === 'simulate') {
-      py.globals.set('args_in', JSON.stringify(payload));
-      result = py.runPython("_a = json.loads(args_in)\nsimulate(_a['level'], json.dumps(_a['shocks']))");
-    } else {
-      throw Error('알 수 없는 요청: ' + type);
+      out.data = JSON.parse(py.runPython('_r = initialize(level_in, raw_bytes, n_in)\ndel raw_bytes\n_r'));
+      out.empCheck = JSON.parse(py.runPython('verify_employment()'));
+      postMessage({ id, ok: true, result: out });
+      return;
     }
+    const names = FUNCTIONS[type];
+    if (!names) throw Error('알 수 없는 요청: ' + type);
+    py.globals.set('args_in', JSON.stringify(names.map((k) => (k === 'payload' ? JSON.stringify(payload[k]) : payload[k]))));
+    result = py.runPython(`${type}(*json.loads(args_in))`);
     postMessage({ id, ok: true, result: JSON.parse(result) });
   } catch (error) {
     postMessage({ id, ok: false, error: String(error && error.message || error) });

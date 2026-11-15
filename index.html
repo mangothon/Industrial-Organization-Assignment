@@ -6,14 +6,20 @@
 <title>2023 산업연관표 분석 웹앱</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="./style.css">
-<script defer src="./app.js"></script>
+<script defer src="./common.js"></script>
+<script defer src="./explorer.js"></script>
+<script defer src="./compare.js"></script>
+<script defer src="./structure.js"></script>
+<script defer src="./linkage.js"></script>
+<script defer src="./simulation.js"></script>
+<script defer src="./main.js"></script>
 </head>
 <body>
 <header class="masthead">
   <div class="wrap">
     <p class="eyebrow">산업조직론 과제물 1 · 2023년 산업연관표(연장표) · 생산자가격</p>
     <h1>산업연관표 분석 웹앱</h1>
-    <p class="lede">대분류·중분류·소분류·기본부문 투입산출표를 불러와 원자료를 살펴보고, 최종수요 증가가 경제 전체에 퍼지는 효과를 계산합니다.</p>
+    <p class="lede">대분류·중분류·소분류·기본부문 투입산출표를 불러와 원자료를 살펴보고 비교하며, 경제구조와 산업연관효과를 분석하고, 최종수요 증가가 경제 전체에 퍼지는 효과를 계산합니다.</p>
   </div>
 </header>
 
@@ -34,6 +40,9 @@
 <nav class="tabs" aria-label="화면 전환">
   <div class="wrap tabs-inner" role="tablist">
     <a href="#explorer" role="tab" data-tab="explorer">원자료 탐색</a>
+    <a href="#compare" role="tab" data-tab="compare">원자료 비교</a>
+    <a href="#structure" role="tab" data-tab="structure">경제구조</a>
+    <a href="#linkage" role="tab" data-tab="linkage">산업연관효과</a>
     <a href="#simulation" role="tab" data-tab="simulation">파급효과 시뮬레이터</a>
   </div>
 </nav>
@@ -50,9 +59,9 @@
       <h2>원자료 탐색</h2>
       <p>위에서 분류를 고르고 <b>불러오기</b>를 누르면 12개 시트를 살펴볼 수 있습니다.</p>
     </div>
-    <div class="explorer-grid" data-ready hidden>
-      <aside class="sheet-nav card" aria-label="시트 목록" id="sheet-nav"></aside>
-      <div class="explorer-main">
+    <div class="side-grid" data-ready hidden>
+      <aside class="side-nav card" aria-label="시트 목록" id="sheet-nav"></aside>
+      <div class="side-main">
         <article class="card sheet-card">
           <div class="sheet-head">
             <div>
@@ -66,23 +75,24 @@
             <div><dt>행(가로)으로 읽으면</dt><dd id="sheet-row"></dd></div>
             <div><dt>열(세로)로 읽으면</dt><dd id="sheet-col"></dd></div>
           </dl>
+          <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
         </article>
 
-        <article class="card" id="heat-card">
+        <article class="card" id="links-card">
           <div class="card-head">
-            <h3>한눈에 보기 <small id="heat-label"></small></h3>
-            <p class="note">색이 진할수록 값이 큽니다(로그 눈금). 칸에 마우스를 올리면 값이, 누르면 그 행이 아래 표에 펼쳐집니다.</p>
+            <h3>가장 큰 연결 <small id="links-label"></small></h3>
+            <p class="note">부문×부문 블록에서 자기 부문(대각) 거래를 뺀 상위 15개입니다. 막대를 누르면 그 공급 산업이 아래 프로필과 표에 선택됩니다.</p>
           </div>
-          <div class="heat-wrap">
-            <div>
-              <div class="heat-axis-x">세로축(행) = 공급하는 상품 ↓ · 가로축(열) = 사용하는 부문 →</div>
-              <canvas id="heat" width="560" height="560" aria-label="부문 간 행렬 히트맵"></canvas>
-            </div>
-            <div class="heat-legend">
-              <div class="heat-ramp"></div>
-              <div class="heat-legend-labels"><span id="heat-max"></span><span id="heat-min"></span></div>
-            </div>
+          <div id="links"></div>
+          <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
+        </article>
+
+        <article class="card" id="profile-card">
+          <div class="card-head row-between">
+            <h3>산업 프로필 <small id="profile-label"></small></h3>
           </div>
+          <div id="profile"></div>
+          <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
         </article>
 
         <article class="card">
@@ -112,21 +122,62 @@
               <tbody id="ex-rows"></tbody>
             </table>
           </div>
+          <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
         </article>
       </div>
     </div>
   </section>
 
-  <!-- 2. 시뮬레이터 -->
+  <!-- 2. 원자료 비교 -->
+  <section id="compare" class="tab-panel" role="tabpanel" hidden>
+    <div class="empty" data-empty>
+      <h2>원자료 비교</h2>
+      <p>분류를 불러오면 행과 열을 직접 골라 맞춤 비교표를 만들 수 있습니다.</p>
+    </div>
+    <div data-ready hidden>
+      <article class="card">
+        <div class="cmp-toolbar" id="cmp-toolbar"></div>
+        <div id="cmp-warn"></div>
+        <div id="cmp-body"></div>
+        <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 3. 경제구조 -->
+  <section id="structure" class="tab-panel" role="tabpanel" hidden>
+    <div class="empty" data-empty>
+      <h2>경제구조</h2>
+      <p>분류를 불러오면 2023년 우리 경제의 산업구조·투입구조·배분구조를 볼 수 있습니다.</p>
+    </div>
+    <div class="side-grid" data-ready hidden>
+      <aside class="side-nav card" aria-label="경제구조 화면 목록" id="st-nav"></aside>
+      <div class="side-main" id="st-main"></div>
+    </div>
+  </section>
+
+  <!-- 4. 산업연관효과 -->
+  <section id="linkage" class="tab-panel" role="tabpanel" hidden>
+    <div class="empty" data-empty>
+      <h2>산업연관효과</h2>
+      <p>분류를 불러오면 유발계수 순위, 영향력·감응도, 최종수요 항목별 유발효과, 고용유발을 볼 수 있습니다.</p>
+    </div>
+    <div class="side-grid" data-ready hidden>
+      <aside class="side-nav card" aria-label="산업연관효과 화면 목록" id="lk-nav"></aside>
+      <div class="side-main" id="lk-main"></div>
+    </div>
+  </section>
+
+  <!-- 5. 시뮬레이터 -->
   <section id="simulation" class="tab-panel" role="tabpanel" hidden>
     <div class="empty" data-empty>
       <h2>파급효과 시뮬레이터</h2>
-      <p>분류를 불러오면 국산품 최종수요가 늘 때의 생산·수입·부가가치 유발효과를 계산할 수 있습니다.</p>
+      <p>분류를 불러오면 국산품 최종수요가 늘 때의 생산·수입·부가가치·취업자 유발효과를 계산할 수 있습니다.</p>
     </div>
     <div class="sim-grid" data-ready hidden>
       <aside class="card sim-input">
         <h2>수요 증가 시나리오</h2>
-        <p class="note">수입 완제품 구매를 뺀 <b>국산품</b> 최종수요(소비·투자·수출)의 증가액을 넣습니다. 여러 산업을 추가하면 합산됩니다.</p>
+        <p class="note">수입 완제품 구매를 뺀 <b>국산품</b> 최종수요(소비·투자·수출)의 증가액을 넣습니다. 여러 산업을 추가하면 합산됩니다. 시나리오는 분류마다 따로 기억됩니다.</p>
         <label>대분류로 좁히기<select id="sim-filter"></select></label>
         <label>산업 검색<input id="sim-search" placeholder="이름 또는 코드"></label>
         <label>산업 선택<select id="sim-sector" size="7"></select></label>
@@ -154,16 +205,20 @@
             <div class="card-head"><h3>생산유발액 = 직접효과 + 간접효과</h3>
               <p class="note">직접효과는 늘어난 수요 그 자체, 간접효과는 그 생산에 필요한 중간재가 다시 다른 산업의 생산을 부르는 연쇄입니다.</p></div>
             <div id="split"></div>
+            <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
           </article>
 
           <article class="card">
-            <div class="card-head row-between"><h3>산업군별 생산유발액 <small>13개 산업군</small></h3><div class="legend" data-legend></div></div>
-            <div class="bars" id="group-bars"></div>
+            <div class="card-head row-between"><h3>산업군별 유발효과 <small>13개 산업군</small></h3>
+              <div class="row-tools"><span id="group-mode"></span><div class="legend" id="group-legend"></div></div></div>
+            <div id="group-bars"></div>
+            <p class="source" id="group-source">자료: 선택한 분류 투입산출표(2023)</p>
           </article>
 
           <article class="card">
-            <div class="card-head row-between"><h3>생산유발액 상위 15개 산업</h3><div class="legend" data-legend></div></div>
-            <div class="bars" id="top-bars"></div>
+            <div class="card-head row-between"><h3>생산유발액 상위 15개 산업</h3><div class="legend" id="top-legend"></div></div>
+            <div id="top-bars"></div>
+            <p class="source">자료: 선택한 분류 투입산출표(2023)</p>
           </article>
 
           <article class="card">
@@ -179,11 +234,19 @@
                 <thead><tr>
                   <th>순위</th><th>코드</th><th>산업</th><th>산업군</th>
                   <th class="num" data-sort="production">생산유발</th><th class="num" data-sort="direct">직접</th><th class="num" data-sort="indirect">간접</th>
-                  <th class="num" data-sort="valueAdded">부가가치</th><th class="num" data-sort="imports">수입</th><th class="num" data-sort="share">비중</th>
+                  <th class="num" data-sort="valueAdded">부가가치</th><th class="num" data-sort="imports">수입</th><th class="num" data-sort="employment">취업자(명)</th><th class="num" data-sort="share">비중</th>
                 </tr></thead>
                 <tbody id="res-rows"></tbody>
               </table>
             </div>
+            <p class="source">자료: 선택한 분류 투입산출표(2023) · 취업자: 주요 분석표(대분류·13개 산업군, 2020~2023)</p>
+          </article>
+
+          <article class="card" id="level-card">
+            <div class="card-head"><h3>분류 수준별 비교</h3>
+              <p class="note">현재 시나리오를 부문분류표로 더 큰 분류(현재 → 소 → 중 → 대)로 옮겨 같은 계산을 합니다. 같은 대응 산업으로 묶이는 입력은 합산합니다.</p></div>
+            <div id="level-body"></div>
+            <p class="source">자료: 선택한 분류 투입산출표(2023) · 부문분류표 · 취업자: 주요 분석표(대분류·13개 산업군, 2020~2023)</p>
           </article>
         </div>
       </div>
@@ -192,6 +255,6 @@
 </main>
 
 <div class="tooltip" id="tip" hidden></div>
-<footer class="wrap footer">자료: 한국은행 「2023년 산업연관표(연장표)」 (ECOS) · 계산은 방문자의 브라우저에서 Pyodide(Python)로 실행 · GitHub Pages 배포</footer>
+<footer class="wrap footer">자료: 한국은행 「2023년 산업연관표(연장표)」 (ECOS 공개 통계) · 계산은 방문자의 브라우저에서 Pyodide(Python)로 실행 · GitHub Pages 배포</footer>
 </body>
 </html>
