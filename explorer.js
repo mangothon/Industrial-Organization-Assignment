@@ -163,11 +163,12 @@
     const box = $('profile'); const code = S.ex.res?.selected; const sheet = S.ex.sheet; const level = S.level;
     const s = cur().byCode[code];
     if (!s) {
-      $('profile-label').textContent = '';
+      $('profile-label').textContent = ''; $('profile-sheet').textContent = '';
       box.replaceChildren(emptyNote('산업을 선택하면 프로필이 표시됩니다.'));
       return;
     }
-    $('profile-label').textContent = `${s.code} ${s.name} · ${SHEETS[sheet]?.short || sheet}`;
+    $('profile-label').textContent = `${s.code} ${s.name}`;
+    $('profile-sheet').textContent = SHEETS[sheet]?.short || sheet;
     const seq = ++profileSeq;
     try {
       const p = await cached('profile', { level: String(level), sheet, code });
