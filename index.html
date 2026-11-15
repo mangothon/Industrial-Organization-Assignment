@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2023 산업연관표 분석 웹앱</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="./style.css">
+<script defer src="./app.js"></script>
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">산업조직론 과제물 1 · 2023년 산업연관표(연장표) · 생산자가격</p>
+    <h1>산업연관표 분석 웹앱</h1>
+    <p class="lede">대분류·중분류·소분류·기본부문 투입산출표를 불러와 원자료를 살펴보고, 최종수요 증가가 경제 전체에 퍼지는 효과를 계산합니다.</p>
+  </div>
+</header>
+
+<div class="controlbar">
+  <div class="wrap controlbar-inner">
+    <div class="level-picker" role="radiogroup" aria-label="분류 선택" id="levels"></div>
+    <button id="load" class="primary" type="button">대분류 불러오기</button>
+    <div class="loader" aria-live="polite">
+      <ol class="steps" id="steps">
+        <li data-step="1">내려받기</li><li data-step="2">Python 준비</li><li data-step="3">읽기·검증</li><li data-step="4">완료</li>
+      </ol>
+      <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+      <p id="status" role="status">분류를 고르고 불러오기 버튼을 누르세요.</p>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="화면 전환">
+  <div class="wrap tabs-inner" role="tablist">
+    <a href="#explorer" role="tab" data-tab="explorer">원자료 탐색</a>
+    <a href="#simulation" role="tab" data-tab="simulation">파급효과 시뮬레이터</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <details class="validation" id="validation-box" hidden>
+    <summary><span class="badge good" id="validation-badge">✓ 계수 검증 통과</span> <span id="validation-summary"></span></summary>
+    <div id="validation"></div>
+  </details>
+
+  <!-- 1. 원자료 탐색 -->
+  <section id="explorer" class="tab-panel" role="tabpanel">
+    <div class="empty" data-empty>
+      <h2>원자료 탐색</h2>
+      <p>위에서 분류를 고르고 <b>불러오기</b>를 누르면 12개 시트를 살펴볼 수 있습니다.</p>
+    </div>
+    <div class="explorer-grid" data-ready hidden>
+      <aside class="sheet-nav card" aria-label="시트 목록" id="sheet-nav"></aside>
+      <div class="explorer-main">
+        <article class="card sheet-card">
+          <div class="sheet-head">
+            <div>
+              <p class="kicker" id="sheet-group"></p>
+              <h2 id="sheet-title"></h2>
+            </div>
+            <span class="unit-badge" id="sheet-unit"></span>
+          </div>
+          <p id="sheet-desc"></p>
+          <dl class="reading">
+            <div><dt>행(가로)으로 읽으면</dt><dd id="sheet-row"></dd></div>
+            <div><dt>열(세로)로 읽으면</dt><dd id="sheet-col"></dd></div>
+          </dl>
+        </article>
+
+        <article class="card" id="heat-card">
+          <div class="card-head">
+            <h3>한눈에 보기 <small id="heat-label"></small></h3>
+            <p class="note">색이 진할수록 값이 큽니다(로그 눈금). 칸에 마우스를 올리면 값이, 누르면 그 행이 아래 표에 펼쳐집니다.</p>
+          </div>
+          <div class="heat-wrap">
+            <div>
+              <div class="heat-axis-x">세로축(행) = 공급하는 상품 ↓ · 가로축(열) = 사용하는 부문 →</div>
+              <canvas id="heat" width="560" height="560" aria-label="부문 간 행렬 히트맵"></canvas>
+            </div>
+            <div class="heat-legend">
+              <div class="heat-ramp"></div>
+              <div class="heat-legend-labels"><span id="heat-max"></span><span id="heat-min"></span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head row-between">
+            <h3>행·열 펼쳐보기</h3>
+            <div class="segmented" role="radiogroup" aria-label="읽는 방향">
+              <button type="button" data-axis="row" aria-pressed="true">행으로 보기</button>
+              <button type="button" data-axis="col" aria-pressed="false">열로 보기</button>
+            </div>
+          </div>
+          <div class="picker">
+            <label>대분류로 좁히기<select id="ex-filter"></select></label>
+            <label>이름·코드 검색<input id="ex-search" placeholder="예: 자동차, 반도체, 부가가치"></label>
+            <label class="grow">선택<select id="ex-choice"></select></label>
+          </div>
+          <div class="table-tools">
+            <p class="table-title" id="ex-caption"></p>
+            <div class="tools-right">
+              <label class="check"><input type="checkbox" id="ex-summary" checked> 합계·지표 포함</label>
+              <label class="inline">정렬 <select id="ex-sort"><option value="orig">원래 순서</option><option value="desc">값 큰 순</option></select></label>
+              <input id="ex-col-search" class="small" placeholder="표 안에서 찾기">
+            </div>
+          </div>
+          <div class="scroll">
+            <table class="data">
+              <thead><tr><th>코드</th><th>이름</th><th class="num">값</th><th class="bar-col">상대 크기</th><th class="num muted-col">원자료</th></tr></thead>
+              <tbody id="ex-rows"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 시뮬레이터 -->
+  <section id="simulation" class="tab-panel" role="tabpanel" hidden>
+    <div class="empty" data-empty>
+      <h2>파급효과 시뮬레이터</h2>
+      <p>분류를 불러오면 국산품 최종수요가 늘 때의 생산·수입·부가가치 유발효과를 계산할 수 있습니다.</p>
+    </div>
+    <div class="sim-grid" data-ready hidden>
+      <aside class="card sim-input">
+        <h2>수요 증가 시나리오</h2>
+        <p class="note">수입 완제품 구매를 뺀 <b>국산품</b> 최종수요(소비·투자·수출)의 증가액을 넣습니다. 여러 산업을 추가하면 합산됩니다.</p>
+        <label>대분류로 좁히기<select id="sim-filter"></select></label>
+        <label>산업 검색<input id="sim-search" placeholder="이름 또는 코드"></label>
+        <label>산업 선택<select id="sim-sector" size="7"></select></label>
+        <div class="amount-row">
+          <label class="grow">증가액<input id="sim-amount" type="number" min="0" step="any" value="1000"></label>
+          <label>단위<select id="sim-unit"><option value="100">억원</option><option value="1000000">조원</option><option value="1">백만원</option></select></label>
+        </div>
+        <p class="note" id="sim-convert"></p>
+        <button id="sim-add" class="secondary" type="button">시나리오에 추가</button>
+        <ul class="basket" id="basket"></ul>
+        <div class="row-buttons">
+          <button id="sim-run" class="primary" type="button" disabled>파급효과 계산</button>
+          <button id="sim-clear" class="ghost" type="button">비우기</button>
+        </div>
+        <p id="sim-status" class="note" role="status"></p>
+      </aside>
+
+      <div class="sim-results">
+        <div class="empty small" id="sim-empty"><p>왼쪽에서 산업과 증가액을 추가한 뒤 <b>파급효과 계산</b>을 누르세요.</p></div>
+        <div id="results" hidden>
+          <div class="kpis" id="kpis"></div>
+          <p class="identity" id="identity"></p>
+
+          <article class="card">
+            <div class="card-head"><h3>생산유발액 = 직접효과 + 간접효과</h3>
+              <p class="note">직접효과는 늘어난 수요 그 자체, 간접효과는 그 생산에 필요한 중간재가 다시 다른 산업의 생산을 부르는 연쇄입니다.</p></div>
+            <div id="split"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-head row-between"><h3>산업군별 생산유발액 <small>13개 산업군</small></h3><div class="legend" data-legend></div></div>
+            <div class="bars" id="group-bars"></div>
+          </article>
+
+          <article class="card">
+            <div class="card-head row-between"><h3>생산유발액 상위 15개 산업</h3><div class="legend" data-legend></div></div>
+            <div class="bars" id="top-bars"></div>
+          </article>
+
+          <article class="card">
+            <div class="table-tools">
+              <p class="table-title" id="res-caption"></p>
+              <div class="tools-right">
+                <input id="res-search" class="small" placeholder="산업 찾기">
+                <button id="download" class="ghost" type="button">CSV 다운로드</button>
+              </div>
+            </div>
+            <div class="scroll">
+              <table class="data sortable">
+                <thead><tr>
+                  <th>순위</th><th>코드</th><th>산업</th><th>산업군</th>
+                  <th class="num" data-sort="production">생산유발</th><th class="num" data-sort="direct">직접</th><th class="num" data-sort="indirect">간접</th>
+                  <th class="num" data-sort="valueAdded">부가가치</th><th class="num" data-sort="imports">수입</th><th class="num" data-sort="share">비중</th>
+                </tr></thead>
+                <tbody id="res-rows"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="tooltip" id="tip" hidden></div>
+<footer class="wrap footer">자료: 한국은행 「2023년 산업연관표(연장표)」 (ECOS) · 계산은 방문자의 브라우저에서 Pyodide(Python)로 실행 · GitHub Pages 배포</footer>
+</body>
+</html>
