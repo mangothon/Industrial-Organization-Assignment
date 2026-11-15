@@ -6,11 +6,12 @@
    ================================================================= */
 const $ = (id) => document.getElementById(id);
 
+// 화면 위쪽 분류 선택 버튼도 이 순서로 표시 (기본부문을 맨 왼쪽에)
 const LEVELS = [
+  { n: 380, label: '기본부문', size: '12MB', file: './data/io-2023-380.xlsx' },
   { n: 33, label: '대분류', size: '0.6MB', file: './data/io-2023-33.xlsx' },
   { n: 83, label: '중분류', size: '1.2MB', file: './data/io-2023-83.xlsx' },
   { n: 165, label: '소분류', size: '3.1MB', file: './data/io-2023-165.xlsx' },
-  { n: 380, label: '기본부문', size: '12MB', file: './data/io-2023-380.xlsx' },
 ];
 const CLASS_FILE = './data/sector-classification.xlsx';
 const SUMMARY_FILE = './data/io-2023-summary.xlsx';
