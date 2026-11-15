@@ -526,7 +526,8 @@ def compare(level, sheet, payload):
             chosen.update(m for m in members if m in st["pos"])
         if rest and all_sec:  # 산업이 없는 축(최종수요 항목 열 등)에는 '나머지'를 두지 않음
             others = [c for c in all_sec if c not in chosen]
-            out.append({"key": "__rest", "label": "나머지 산업 합계", "members": others, "kind": "rest"})
+            if others:  # 산업을 모두 고른 경우에는 나머지가 없음
+                out.append({"key": "__rest", "label": "나머지 산업 합계", "members": others, "kind": "rest"})
             if add_va:
                 for code in ("9690", "9790"):
                     if code in axis_codes and not any(o["members"] == [code] for o in out):

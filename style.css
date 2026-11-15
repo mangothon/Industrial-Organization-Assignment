@@ -418,3 +418,14 @@ td.wrap-cell { white-space: normal; min-width: 220px; font-size: .84rem; }
   .picker { grid-template-columns: 1fr; }
   .card { padding: 16px 14px; }
 }
+
+/* 원자료 비교 — 행/열 수정 창 */
+.popover.editor { width: min(640px, calc(100vw - 24px)); }
+.popover.editor .pop-head { justify-content: flex-start; }
+.popover.editor .pop-head > b { margin-right: 4px; }
+.popover.editor .pop-head > button:last-child { margin-left: auto; }
+.popover .pop-foot .row-buttons { gap: 8px; }
+.ghost.danger { color: var(--bad); border-color: #e7b3b3; }
+.ghost.danger:hover { background: #fdf0f0; }
+.warn-inline { color: #8a4b00; }
+.pick-item.on span { font-weight: 600; }

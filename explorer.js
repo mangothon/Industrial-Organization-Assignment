@@ -66,7 +66,14 @@
     document.querySelectorAll('[data-axis]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.axis === 'row')));
     $('ex-search').value = ''; $('ex-filter').value = '';
     explore();
-    $('profile-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollToCard($('profile-card'));
+  }
+
+  /** 카드 머리가 상단 고정 막대(분류 선택·진행 표시) 바로 아래에 오도록 이동 */
+  function scrollToCard(card) {
+    const bar = document.querySelector('.controlbar');
+    const offset = bar && getComputedStyle(bar).position === 'sticky' ? bar.getBoundingClientRect().height : 0;
+    window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - offset - 12, behavior: 'smooth' });
   }
 
   // ---------------------------------------------------------------- 행·열 펼쳐보기
