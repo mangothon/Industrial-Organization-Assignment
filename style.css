@@ -429,3 +429,24 @@ td.wrap-cell { white-space: normal; min-width: 220px; font-size: .84rem; }
 .ghost.danger:hover { background: #fdf0f0; }
 .warn-inline { color: #8a4b00; }
 .pick-item.on span { font-weight: 600; }
+
+/* 경제구조 — 왼쪽 목록 하위 항목, 품목별 핵심 지표 표 */
+.side-nav button.child { padding: 4px 10px 4px 24px; font-size: .82rem; position: relative; }
+.side-nav button.child::before { content: ""; position: absolute; left: 13px; top: 50%; width: 5px; height: 1px; background: var(--ink-3); }
+.side-nav button.parent-on { color: var(--ink); font-weight: 650; }
+.items-scroll { max-height: 620px; }
+.items-table th, .items-table td { white-space: nowrap; }
+.items-table th.first { position: sticky; left: 0; z-index: 2; background: #f6f7f9; text-align: left; font-weight: 500; color: var(--ink); min-width: 220px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--line); }
+.items-table thead th { z-index: 3; }
+.items-table thead th.first { z-index: 4; background: #eef0f3; color: var(--ink-2); font-weight: 650; }
+.items-table tr.total-row > * { position: sticky; z-index: 3; background: #e8f1fc !important; font-weight: 700; color: var(--ink); border-bottom: 2px solid var(--line-strong); }
+.items-table tr.total-row > th.first { z-index: 4; }
+.items-table th.sort { cursor: pointer; user-select: none; }
+.items-table th.sort.active { color: var(--blue-dark); }
+.items-table .sort-mark { color: var(--ink-3); }
+.items-table th.active .sort-mark { color: var(--blue-dark); }
+.items-table .code { color: var(--ink-3); font-size: .8rem; margin-right: 6px; font-variant-numeric: tabular-nums; }
+.items-table button.link { border: 0; background: none; padding: 0; color: var(--blue-dark); font: inherit; text-align: left; cursor: pointer; }
+.items-table button.link:hover { text-decoration: underline; }
+.items-table .np { margin-left: 6px; font-size: .7rem; padding: 1px 6px; border-radius: 99px; background: var(--line); color: var(--ink-2); }
+.items-table .cmp-mark { color: var(--ink-3); font-size: .72rem; }

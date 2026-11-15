@@ -7,7 +7,7 @@
 
   function render() {
     renderSheetNav();
-    const fresh = shownLevel !== S.level;
+    const fresh = shownLevel !== S.level || !!S.ex.focusProfile;   // 다른 탭에서 품목을 골라 왔으면 필터를 비움
     shownLevel = S.level;
     loadSheet(fresh);
   }
@@ -35,7 +35,8 @@
     if (resetFilters) { $('ex-search').value = ''; $('ex-filter').value = ''; $('ex-col-search').value = ''; }
     if (!keepKey) S.ex.key = '';   // 선택한 산업은 시트를 바꿔도 유지 (없으면 첫 항목)
     renderFilterOptions($('ex-filter'), true);
-    renderLinks(sheet);
+    const links = renderLinks(sheet);
+    if (S.ex.focusProfile) await links;   // 위 카드 높이가 정해진 뒤 프로필로 이동
     await explore();
   }
 
@@ -85,6 +86,13 @@
       if (seq !== exploreSeq) return;
       S.ex.res = r; S.ex.key = r.selected;
       renderChoices(); renderCells(); renderProfile();
+      if (S.ex.focusProfile) {
+        S.ex.focusProfile = false;
+        const key = r.selected;
+        // 프로필 내용이 그려진 뒤(높이 확정) 이동
+        cached('profile', { level: String(S.level), sheet: S.ex.sheet, code: key }).catch(() => {})
+          .then(() => setTimeout(() => scrollToCard($('profile-card')), 50));
+      }
     } catch (e) { $('ex-caption').textContent = '불러오기 실패: ' + e.message; }
   }
 

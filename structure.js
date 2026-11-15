@@ -5,7 +5,9 @@
    ================================================================= */
 (() => {
   const VIEWS = [
-    { id: 'kpi', label: '핵심 지표', sub: '전산업 8개 지표' },
+    { id: 'kpiParent', label: '핵심 지표', sub: '전산업·품목별', parentOf: ['kpi', 'kpiItems'] },
+    { id: 'kpi', label: '전산업', child: true },
+    { id: 'kpiItems', label: '품목별', child: true },
     { id: 'industry', label: '산업구조', sub: '총산출·부가가치 구성' },
     { id: 'input', label: '투입구조', sub: '중간투입률·부가가치율 등' },
     { id: 'alloc', label: '배분구조', sub: '최종수요·수출률·중간수요율' },
@@ -31,17 +33,32 @@
     importDependence: { label: '수입의존도', unit: '%' }, vaRate: { label: '부가가치율', unit: '%' },
     exportRate: { label: '수출률', unit: '%' }, importRate: { label: '수입률', unit: '%' },
   };
+  /** 모든 비율 지표의 정의 (전산업 카드·순위·품목별 표가 함께 씀) */
+  const RATES = {
+    intermediateRate: { label: '중간투입률', num: 'inter', den: 'output', def: '중간투입계(9590) ÷ 총투입계(9790)' },
+    vaRate: { label: '부가가치율', num: 'va', den: 'output', def: '부가가치계(9690) ÷ 총투입계(9790)' },
+    importDependence: { label: '수입의존도', num: 'impInter', den: 'output', def: '수입거래표 중간투입계(9590) ÷ 총거래표 총투입계(9790)' },
+    localizationRate: { label: '국산화율', num: 'domInter', den: 'inter', def: '국산거래표 중간투입계(9590) ÷ 총거래표 중간투입계(9590)' },
+    exportRate: { label: '수출률', num: 'export', den: 'outCol', def: '수출(9140) ÷ 총산출(9310)' },
+    importRate: { label: '수입률', num: 'imports', den: 'supply', def: '수입계(9329) ÷ 총공급계(9390)' },
+    interDemand: { label: '중간수요율', num: 'interDemand', den: 'totalDemand', def: '중간수요계(9090) ÷ 총수요계(9290)' },
+  };
+  /** 금액을 합산한 객체(품목·산업군·전산업)에서 비율(%) 계산. 분모가 0이면 null */
+  const rate = (obj, ind) => (obj[ind.den] ? obj[ind.num] / obj[ind.den] * 100 : null);
+
   const UI = { view: 'kpi', inputInd: 'intermediateRate', inputView: 'group', allocView: 'group', trendInd: 'outputShare',
-    trendPick: ['조립가공제품', '생산자서비스'] };
+    trendPick: ['조립가공제품', '생산자서비스'],
+    items: { view: 'all', sort: null, dir: -1, q: '', large: '' } };
 
   async function render() {
-    sideNav($('st-nav'), VIEWS, UI.view, (id) => { UI.view = id; render(); });
+    sideNav($('st-nav'), VIEWS, UI.view, (id) => { UI.view = id === 'kpiParent' ? 'kpi' : id; render(); });
     const main = $('st-main'); const level = S.level;
     let d;
     try { d = await cached('structure', { level: String(level) }); } catch (e) { main.replaceChildren(emptyNote('계산 실패: ' + e.message)); return; }
     if (level !== S.level) return;
-    const view = { kpi: kpiView, industry: industryView, input: inputView, alloc: allocView, trend: trendView }[UI.view];
+    const view = { kpi: kpiView, kpiItems: itemsView, industry: industryView, input: inputView, alloc: allocView, trend: trendView }[UI.view];
     main.replaceChildren(...view(d));
+    if (UI.view === 'kpiItems') drawItems();
   }
   const card = (title, sub, ...body) => el('article', { class: 'card' },
     el('div', { class: 'card-head' }, el('h3', {}, title, sub ? el('small', { text: sub }) : null)), ...body);
@@ -70,6 +87,128 @@
       sourceNote(SRC_IO))];
   }
   const near = (a, b) => Math.abs(a - b) <= 0.1 + 1e-9;
+
+  // ---------------------------------------------------------------- ①-2 품목별 핵심 지표
+  const ITEM_RATES = ['intermediateRate', 'vaRate', 'importDependence', 'localizationRate', 'exportRate', 'importRate', 'interDemand'];
+  const itemCache = new Map();   // `${분류}|${보기}` -> {rows, total}
+  /** 분류를 불러온 뒤 한 번만 계산하고 기억 */
+  function itemRows(d, view) {
+    const key = S.level + '|' + view;
+    if (itemCache.has(key)) return itemCache.get(key);
+    const pack = (o, extra) => ({ ...extra, output: o.output, va: o.va,
+      rates: Object.fromEntries(ITEM_RATES.map((k) => [k, rate(o, RATES[k])])) });
+    const rows = view === 'all'
+      ? d.sectors.map((s) => pack(s, { code: s.code, name: s.name, produced: s.produced, large: cur().byCode[s.code]?.large,
+        search: (s.code + ' ' + s.name).toLowerCase() }))
+      : d.groups.map((g) => pack(g, { code: '', name: g.group, produced: g.output > 0, search: g.group.toLowerCase() }));
+    const out = { rows, total: pack(d.totals, { code: '', name: '전산업', produced: true }) };
+    itemCache.set(key, out);
+    return out;
+  }
+
+  let itemsData = null;
+  function itemsView(d) {
+    const st = UI.items;
+    itemsData = d;
+    const largeSel = el('select', { 'aria-label': '대분류 필터', onchange: (e) => { st.large = e.target.value; drawItems(); } });
+    renderFilterOptions(largeSel, false);
+    largeSel.value = st.large;
+    if (largeSel.value !== st.large) st.large = '';
+    const search = el('input', { class: 'small', placeholder: '품목 검색', value: st.q, 'aria-label': '품목 검색',
+      oninput: (e) => { st.q = e.target.value; drawItems(); } });
+    return [el('article', { class: 'card' },
+      el('div', { class: 'card-head' }, el('h3', {}, '품목별 핵심 지표', el('small', { text: `${levelInfo().label} · 2023년` })),
+        sourceNote(SRC_IO)),
+      el('div', { class: 'card-tools' },
+        segmented([['all', `${levelInfo().label} 전체 품목`], ['group', '13개 산업군']], st.view, (v) => { st.view = v; st.sort = null; render(); }, '보기'),
+        search,
+        st.view === 'all' ? el('label', { class: 'inline' }, '대분류', largeSel) : null,
+        el('button', { type: 'button', class: 'ghost', text: 'CSV 다운로드', onclick: itemsCsv })),
+      el('p', { class: 'note', text: '▲▼는 전산업 평균 대비 높고 낮음을 뜻합니다. 품목을 누르면 산업 프로필로 이동합니다.' }),
+      el('div', { id: 'items-box' }),
+      el('p', { class: 'note', text: (st.view === 'group' ? '13개 산업군은 산업군 안의 금액을 먼저 합산한 뒤 비율을 계산합니다. ' : '')
+        + '국내 생산이 없는 품목은 총산출이 분모인 지표를 "–"로 표시합니다. 정의: '
+        + ITEM_RATES.map((k) => `${RATES[k].label} = ${RATES[k].def}`).join(' · ') }))];
+  }
+
+  function itemColumns() {
+    return [
+      { key: 'output', label: '총산출', money: true }, { key: 'va', label: '부가가치', money: true },
+      ...ITEM_RATES.map((k) => ({ key: k, label: RATES[k].label, rate: true })),
+    ];
+  }
+  const cellValue = (r, c) => (c.rate ? r.rates[c.key] : r[c.key]);
+
+  function drawItems() {
+    const box = $('items-box'); if (!box || !itemsData) return;
+    const st = UI.items;
+    const { rows, total } = itemRows(itemsData, st.view);
+    const q = st.q.trim().toLowerCase();
+    let list = rows.filter((r) => (!q || r.search.includes(q)) && (st.view !== 'all' || !st.large || r.large === st.large));
+    if (st.sort) {
+      const col = itemColumns().find((c) => c.key === st.sort);
+      list = [...list].sort((a, b) => {
+        const x = cellValue(a, col), y = cellValue(b, col);
+        if (x === null) return 1; if (y === null) return -1;   // 값 없음은 항상 맨 아래
+        return (x - y) * st.dir;   // dir -1 = 내림차순
+      });
+    }
+    const cols = itemColumns();
+    const unit = pickUnit(Math.max(total.output, ...rows.map((r) => r.output)));
+    const mfmt = (v) => nfFixed(unit === '조원' ? 2 : 0).format(v / UNITS[unit]);
+    const head = el('tr', {}, el('th', { class: 'first' }, st.view === 'all' ? '코드 · 품목' : '산업군'),
+      cols.map((c) => el('th', { class: 'num sort' + (st.sort === c.key ? ' active' : ''), title: '누르면 정렬',
+        onclick: () => { if (st.sort === c.key) st.dir = -st.dir; else { st.sort = c.key; st.dir = -1; } drawItems(); } },
+      c.label + (c.money ? ` (${unit})` : ' (%)'), el('span', { class: 'sort-mark', text: st.sort === c.key ? (st.dir < 0 ? ' ↓' : ' ↑') : ' ↕' }))));
+    // 행 요소는 한 번만 만들고 정렬·검색 때는 순서만 바꾼다 (기본부문 380개도 즉시 반응)
+    const row = (r, isTotal) => {
+      const k = r._trKey = unit + '|' + st.view;
+      if (r._tr && r._trFor === k) return r._tr;
+      r._tr = buildRow(r, isTotal); r._trFor = k;
+      return r._tr;
+    };
+    const buildRow = (r, isTotal) => {
+      const first = el('th', { class: 'first' },
+        r.code ? el('span', { class: 'code', text: r.code }) : null,
+        !isTotal && st.view === 'all'
+          ? el('button', { type: 'button', class: 'link', text: r.name, title: '원자료 탐색의 산업 프로필로 이동', onclick: () => openProfile(r.code) })
+          : el('span', { text: r.name }),
+        r.produced ? null : el('small', { class: 'np', text: '국내 생산 없음' }));
+      return el('tr', { class: isTotal ? 'total-row' : '' }, first, cols.map((c) => {
+        const v = cellValue(r, c);
+        if (v === null || v === undefined) return el('td', { class: 'num muted', text: '–' });
+        if (c.money) return el('td', { class: 'num', text: mfmt(v) });
+        const t = total.rates[c.key];
+        const diff = v - t;
+        const mark = isTotal || Math.abs(diff) < 0.05 ? '' : diff > 0 ? '▲' : '▼';
+        const td = el('td', { class: 'num' }, nfFixed(1).format(v), mark ? el('span', { class: 'cmp-mark', text: ' ' + mark }) : null);
+        if (!isTotal) hoverTip(td, `<b>${esc(r.name)}</b> ${esc(c.label)} ${pct(v)}<br>전산업 ${pct(t)} 대비 ${diff >= 0 ? '+' : ''}${nfFixed(1).format(diff)}%p`);
+        return td;
+      }));
+    };
+    const table = el('table', { class: 'data items-table' }, el('thead', {}, head, row(total, true)),
+      el('tbody', {}, list.length ? list.map((r) => row(r, false)) : el('tr', {}, el('td', { colspan: cols.length + 1, class: 'muted', text: '검색 결과가 없습니다.' }))));
+    box.replaceChildren(el('div', { class: 'scroll items-scroll' }, table),
+      el('p', { class: 'note', text: `${list.length}개 표시 · 금액 단위 ${unit}, 비율 단위 %` }));
+    // 전산업 행을 머리글 바로 아래에 고정
+    const h = head.getBoundingClientRect().height;
+    table.querySelectorAll('tr.total-row > *').forEach((c) => { c.style.top = h + 'px'; });
+  }
+
+  function openProfile(code) {
+    S.ex.sheet = 'A표_총거래표(생산자)'; S.ex.axis = 'row'; S.ex.key = code; S.ex.focusProfile = true;
+    location.hash = '#explorer';
+  }
+
+  function itemsCsv() {
+    const st = UI.items; const { rows, total } = itemRows(itemsData, st.view);
+    const cols = itemColumns();
+    const q = st.q.trim().toLowerCase();
+    const list = rows.filter((r) => (!q || r.search.includes(q)) && (st.view !== 'all' || !st.large || r.large === st.large));
+    const out = [[st.view === 'all' ? '코드' : '구분', st.view === 'all' ? '품목' : '산업군', '국내생산', ...cols.map((c) => c.label + (c.money ? '_백만원' : '_%'))],
+      ...[total, ...list].map((r) => [r.code, r.name, r.produced ? '있음' : '없음', ...cols.map((c) => { const v = cellValue(r, c); return v === null ? '' : v; })])];
+    downloadRows(out, `io-2023-${S.level}-품목별-핵심지표${st.view === 'group' ? '-산업군' : ''}.csv`);
+  }
 
   // ---------------------------------------------------------------- ② 산업구조
   function groupColors(groups) {
@@ -104,12 +243,12 @@
 
   // ---------------------------------------------------------------- ③·④ 순위 공통
   function rateRanking(d, ind, view, onView) {
-    const avg = d.totals[ind.num] / d.totals[ind.den] * 100;
+    const avg = rate(d.totals, ind);
     let list;
     if (view === 'group') {
-      list = d.groups.filter((g) => g[ind.den] > 0).map((g) => ({ name: g.group, value: g[ind.num] / g[ind.den] * 100 }));
+      list = d.groups.filter((g) => g[ind.den] > 0).map((g) => ({ name: g.group, value: rate(g, ind) }));
     } else {
-      list = d.sectors.filter((s) => s.produced && s[ind.den] > 0).map((s) => ({ name: s.name, sub: s.code, value: s[ind.num] / s[ind.den] * 100 }));
+      list = d.sectors.filter((s) => s.produced && s[ind.den] > 0).map((s) => ({ name: s.name, sub: s.code, value: rate(s, ind) }));
     }
     list.sort((a, b) => b.value - a.value);
     const max = Math.max(...list.map((x) => x.value), avg) * 1.02;

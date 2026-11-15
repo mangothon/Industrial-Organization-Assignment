@@ -609,7 +609,7 @@ def structure(level):
                         "output": float(X[i]), "va": float(va[i]), "inter": float(inter[i]),
                         "impInter": float(imp_inter[i]), "domInter": float(dom_inter[i]),
                         "export": float(export[i]), "outCol": float(out_col[i]), "interDemand": float(inter_dem[i]),
-                        "totalDemand": float(tot_dem[i])})
+                        "totalDemand": float(tot_dem[i]), "imports": float(imports[i]), "supply": float(supply[i])})
     groups = []
     for g in GROUP_NAMES:
         idx = [i for i, s in enumerate(st["sectors"]) if s["group"] == g]
@@ -618,11 +618,12 @@ def structure(level):
         sm = lambda v: float(v[idx].sum())
         groups.append({"group": g, "output": sm(X), "va": sm(va), "inter": sm(inter), "impInter": sm(imp_inter),
                        "domInter": sm(dom_inter), "export": sm(export), "outCol": sm(out_col),
-                       "interDemand": sm(inter_dem), "totalDemand": sm(tot_dem)})
+                       "interDemand": sm(inter_dem), "totalDemand": sm(tot_dem), "imports": sm(imports), "supply": sm(supply)})
     return emit({"kpi": kpi, "final": final, "sectors": sectors, "groups": groups,
                  "totals": {"output": tot(X), "va": tot(va), "inter": tot(inter), "impInter": tot(imp_inter),
                             "domInter": tot(dom_inter), "export": tot(export), "outCol": tot(out_col),
-                            "interDemand": tot(inter_dem), "totalDemand": tot(tot_dem)}})
+                            "interDemand": tot(inter_dem), "totalDemand": tot(tot_dem), "imports": tot(imports),
+                            "supply": tot(supply)}})
 
 
 # ---------------------------------------------------------------- 산업연관효과

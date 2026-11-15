@@ -217,7 +217,8 @@ function emptyNote(text) { return el('p', { class: 'empty-note', text }); }
 function sideNav(box, items, current, onSelect) {
   box.replaceChildren(...items.map((it) => (it.heading
     ? el('h4', { text: it.heading })
-    : el('button', { type: 'button', 'aria-current': String(it.id === current), onclick: () => onSelect(it.id) },
+    : el('button', { type: 'button', class: (it.child ? 'child' : '') + (it.parentOf?.includes(current) ? ' parent-on' : ''),
+      'aria-current': String(it.id === current), onclick: () => onSelect(it.id) },
       el('span', { text: it.label }), it.sub ? el('small', { text: it.sub }) : null))));
 }
 
